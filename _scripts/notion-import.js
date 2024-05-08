@@ -18,8 +18,24 @@ function escapeCodeBlock(body) {
   });
 }
 
-function makeMarkdownTitle(body) {
-    return body.replaceAll("\n\n# ", "\n\n## ");
+function replaceTitleOutsideRawBlocks(body) {
+  const rawBlocks = [];
+  const placeholder = "%%RAW_BLOCK%%";
+  body = body.replace(/{% raw %}[\s\S]*?{% endraw %}/g, (match) => {
+    rawBlocks.push(match);
+    return placeholder;
+  });
+
+  const regex = /\n#[^\n]+\n/g;
+  body = body.replace(regex, function (match) {
+    return "\n" + match.replace("\n#", "\n##");
+  });
+
+  rawBlocks.forEach(block => {
+    body = body.replace(placeholder, block);
+  });
+
+  return body;
 }
 
 // passing notion client to the option
@@ -114,14 +130,13 @@ title: "${title}"${fmtags}${fmcats}
 ---
 
 `;
-    console.log(title);
     const mdblocks = await n2m.pageToMarkdown(id);
     let md = n2m.toMarkdownString(mdblocks)["parent"];
     if (md === "") {
       continue;
     }
     md = escapeCodeBlock(md);
-    md = makeMarkdownTitle(md);
+    md = replaceTitleOutsideRawBlocks(md);
 
     const ftitle = `${date}-${title.replaceAll(" ", "-")}.md`;
 
